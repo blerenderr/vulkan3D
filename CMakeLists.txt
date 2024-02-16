@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(vulkan3D VERSION 0.1.0 LANGUAGES C)
 
-include_directories(SYSTEM $VULKAN_SDK/include/)
-add_link_options(-lvulkan -L$VULKAN_SDK/lib/)
+#include_directories(SYSTEM $ENV{VULKAN_SDK}/include/)
+#add_link_options(-lvulkan -L$ENV{VULKAN_SDK}/lib/)
 
 include(CTest)
 enable_testing()    
