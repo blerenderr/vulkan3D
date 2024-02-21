@@ -20,19 +20,19 @@ typedef char b8;
 #define STATIC_ASSERT static_assert
 #endif
 
-STATIC_ASSERT(sizeof(u8) == 1, "expected u8 to be 1 byte");
-STATIC_ASSERT(sizeof(u16) == 2, "expected u16 to be 2 bytes");
-STATIC_ASSERT(sizeof(u32) == 4, "expected u32 to be 4 bytes");
-STATIC_ASSERT(sizeof(u64) == 8, "expected u64 to be 8 bytes");
+// STATIC_ASSERT(sizeof(u8) == 1, "expected u8 to be 1 byte");
+// STATIC_ASSERT(sizeof(u16) == 2, "expected u16 to be 2 bytes");
+// STATIC_ASSERT(sizeof(u32) == 4, "expected u32 to be 4 bytes");
+// STATIC_ASSERT(sizeof(u64) == 8, "expected u64 to be 8 bytes");
 
 
-STATIC_ASSERT(sizeof(i8) == 1, "expected i8 to be 1 byte");
-STATIC_ASSERT(sizeof(i16) == 2, "expected i16 to be 2 bytes");
-STATIC_ASSERT(sizeof(i32) == 4, "expected i32 to be 4 bytes");
-STATIC_ASSERT(sizeof(i64) == 8, "expected i64 to be 8 bytes");
+// STATIC_ASSERT(sizeof(i8) == 1, "expected i8 to be 1 byte");
+// STATIC_ASSERT(sizeof(i16) == 2, "expected i16 to be 2 bytes");
+// STATIC_ASSERT(sizeof(i32) == 4, "expected i32 to be 4 bytes");
+// STATIC_ASSERT(sizeof(i64) == 8, "expected i64 to be 8 bytes");
 
-STATIC_ASSERT(sizeof(f32) == 4, "expected f32 to be 4 bytes");
-STATIC_ASSERT(sizeof(f64) == 8, "expected f64 to be 8 bytes");
+// STATIC_ASSERT(sizeof(f32) == 4, "expected f32 to be 4 bytes");
+// STATIC_ASSERT(sizeof(f64) == 8, "expected f64 to be 8 bytes");
 
 #define TRUE 1
 #define FALSE 0

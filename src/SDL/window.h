@@ -5,7 +5,7 @@
 #define SCREEN_HEIGHT 400
 #define SCREEN_WIDTH 400
 
-
-SDL_Window *mainWindow;
 b8 window_init();
+SDL_Window* window_getMain();
 void window_destroy();
+

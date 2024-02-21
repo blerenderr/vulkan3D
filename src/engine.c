@@ -1,21 +1,28 @@
 #include "engine.h"
-#include "SDL/renderer.h"
-#include <SDL_render.h>
+
+engine_t *engine;
 
 b8 engine_start() {
-    {
+    {   // create our engine and then store its address
         engine_t lEngine;
         lEngine.is_running = TRUE;
         engine = &lEngine;
     }
     window_init();
-    renderer_init(mainWindow);
+    renderer_init(window_getMain());
+
+    SDL_Event event; // needs to be kept in scope or else input causes a segfault
+    input_init(&event);
+
     printf("starting engine\n");
     while(engine->is_running) {
         renderer_clear();
         // stuff
-        SDL_SetRenderDrawColor(mainRenderer, 0,0,0,0);
-        SDL_RenderDrawLine(mainRenderer, 0,0,400,400);
+
+        if(!input_handle()) { engine->is_running = FALSE; }
+
+        SDL_SetRenderDrawColor(renderer_getMain(), 0,0,0,0);
+        SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);
 
         renderer_present();
         usleep(33);
@@ -23,4 +30,8 @@ b8 engine_start() {
     renderer_destroy();
     window_destroy();
     return 0;
+}
+
+engine_t* engine_get() {
+    return engine;
 }
