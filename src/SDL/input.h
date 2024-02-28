@@ -1,6 +1,6 @@
 #pragma once
-#include <SDL_events.h>
 #include "../types.h"
+#include <SDL_events.h>
 
 
 typedef struct input_t {

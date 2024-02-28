@@ -1,4 +1,8 @@
 #include "engine.h"
+#include "SDL/window.h"
+#include "SDL/renderer.h"
+#include "SDL/input.h"
+#include <unistd.h>
 
 engine_t *engine;
 

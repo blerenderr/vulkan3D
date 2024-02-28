@@ -1,5 +1,4 @@
 #include "input.h"
-#include <SDL_types.h>
 
 input_t input;
 
