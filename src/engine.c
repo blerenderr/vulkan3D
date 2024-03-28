@@ -2,12 +2,13 @@
 #include "SDL/window.h"
 #include "SDL/renderer.h"
 #include "SDL/input.h"
+#include "pipeline.h"
 #include <unistd.h>
 
 engine_t *engine;
 
 b8 engine_start() {
-    {   // create our engine and then store its address
+    {   // create our engine and then store its address, malloc this when it gets big
         engine_t lEngine;
         lEngine.is_running = TRUE;
         engine = &lEngine;
@@ -17,6 +18,8 @@ b8 engine_start() {
 
     SDL_Event event; // needs to be kept in scope or else input causes a segfault
     input_init(&event);
+
+    pipeline_init("resource/simple_shader.vert.spv", "resource/simple_shader.frag.spv");
 
     printf("starting engine\n");
     while(engine->is_running) {
