@@ -3,6 +3,7 @@
 #include "SDL/renderer.h"
 #include "SDL/input.h"
 #include "pipeline.h"
+#include "instance.h"
 #include <unistd.h>
 
 engine_t *engine;
@@ -10,10 +11,16 @@ engine_t *engine;
 b8 engine_start() {
     {   // create our engine and then store its address, malloc this when it gets big
         engine_t lEngine;
-        lEngine.is_running = TRUE;
+        lEngine.isRunning = TRUE;
         engine = &lEngine;
     }
-    window_init();
+
+    // variables for extensions required by SDL
+    u32 extensionCount = 30;
+    char *exNames[30];
+    const char **extensionNames = (const char **)exNames; // lol
+
+    window_init(&extensionCount, extensionNames);
     renderer_init(window_getMain());
 
     SDL_Event event; // needs to be kept in scope or else input causes a segfault
@@ -21,12 +28,16 @@ b8 engine_start() {
 
     pipeline_init("resource/simple_shader.vert.spv", "resource/simple_shader.frag.spv");
 
-    printf("starting engine\n");
-    while(engine->is_running) {
+
+    instance_init(&extensionCount, extensionNames);
+
+
+    printf("starting engine\n\n");
+    while(engine->isRunning) {
         renderer_clear();
         // stuff
 
-        if(!input_handle()) { engine->is_running = FALSE; }
+        if(!input_handle()) { engine->isRunning = FALSE; }
 
         SDL_SetRenderDrawColor(renderer_getMain(), 0,0,0,0);
         SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);
@@ -34,6 +45,8 @@ b8 engine_start() {
         renderer_present();
         usleep(33);
     }
+    printf("stopping engine\n");
+    instance_destroy();
     renderer_destroy();
     window_destroy();
     return 0;
