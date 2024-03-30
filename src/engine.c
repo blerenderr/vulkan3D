@@ -29,7 +29,9 @@ b8 engine_start() {
     pipeline_init("resource/simple_shader.vert.spv", "resource/simple_shader.frag.spv");
 
 
+    // maybe move all the vulkan inits to a seperate function
     instance_init(&extensionCount, extensionNames);
+    instance_pickPhysicalDevice();
 
 
     printf("starting engine\n\n");
@@ -37,7 +39,9 @@ b8 engine_start() {
         renderer_clear();
         // stuff
 
-        if(!input_handle()) { engine->isRunning = FALSE; }
+        if(!input_handle()) {
+            engine->isRunning = FALSE;
+        }
 
         SDL_SetRenderDrawColor(renderer_getMain(), 0,0,0,0);
         SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);

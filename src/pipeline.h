@@ -2,9 +2,9 @@
 #include "types.h"
 
 typedef struct pipeline_t {
-    u8 *vertCode;
+    void *vertCode;
     u32 vertCodeSize;
-    u8 *fragCode;
+    void *fragCode;
     u32 fragCodeSize;
 } pipeline_t;
 

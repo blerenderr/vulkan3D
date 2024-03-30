@@ -36,3 +36,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "expected f64 to be 8 bytes");
 
 #define TRUE 1
 #define FALSE 0
+
+typedef struct optional_u32_t {
+    u32 data;
+    b8 hasValue;
+} optional_u32;

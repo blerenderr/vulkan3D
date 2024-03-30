@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-u8* utils_readFile(const char filename[], u32 *size) {
+void* utils_readFile(const char filename[], u32 *size, u32 bytesPerType) {
     FILE *file;
     file = fopen(filename, "r");
 
     if(file == NULL) {
         printf("couldn't get file pointer type\n");
-        return 0;
+        return NULL;
     }
 
     // get size of file so we can malloc it
@@ -17,9 +17,12 @@ u8* utils_readFile(const char filename[], u32 *size) {
     rewind(file);
 
     // pass back our filesize
-    *size = fileSize;
+    if(size != NULL) {
+        *size = fileSize;
+    }
 
-    u8 *data = malloc(fileSize * sizeof(u8));
+
+    void *data = malloc(fileSize * bytesPerType);
 
     fread(data, fileSize, 1, file);
     fclose(file);
