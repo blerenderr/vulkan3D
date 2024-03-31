@@ -1,11 +1,28 @@
-#include "instance.h"
+#include "bigvulkan.h"
 #include "types.h"
+#include "SDL/window.h"
+#include <SDL_vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include <stdio.h>
 #include <string.h>
 
+
 VkInstance instance;
+
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+
+// vulkan logical device
+VkDevice device;
+
+
+VkQueue graphicsQueue;
+
+
+VkSurfaceKHR surface;
+
+
+u32 extensionCount;
+const char **extensionNames;
 
 #ifdef DEBUG
 const b8 enableValidationLayers = TRUE;
@@ -16,7 +33,7 @@ const b8 enableValidationLayers = FALSE;
 #define VALIDATION_LAYERS_COUNT 1
 const char* validationLayers[VALIDATION_LAYERS_COUNT] = {"VK_LAYER_KHRONOS_validation"};
 
-typedef struct QueueFamilyIndices_t {
+typedef struct QueueFamilyIndices {
     optional_u32 graphicsFamily;
 } QueueFamilyIndices;
 
@@ -46,7 +63,7 @@ b8 checkVLayerSupport() {
     }
     return TRUE;
 }
-void instance_init(u32 *extensionCount, const char **extensionNames) {
+void createInstance() {
     if(enableValidationLayers && !checkVLayerSupport()) {
         printf("requested validation layers are not available!\n");
     }
@@ -70,24 +87,39 @@ void instance_init(u32 *extensionCount, const char **extensionNames) {
     }
 
     // needed for vulkan to not throw a fit on mac
-    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    // remember, extensionCount is the total elements and we're indexing into the next one
-    extensionNames[*extensionCount] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-    *extensionCount = *extensionCount + 1;
-
+    const char *platform = SDL_GetPlatform();
+    if(strcmp(platform, "Mac OS X") == 0) {
+        createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        // remember, extensionCount is the total elements and we're indexing into the next one
+        extensionNames[extensionCount] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+        extensionCount++;
+    }
 
     // pass in our parameters
-    createInfo.enabledExtensionCount = *extensionCount;
+    createInfo.enabledExtensionCount = extensionCount;
     createInfo.ppEnabledExtensionNames = extensionNames;
 
 
     VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
     printf("vkCreateInstance result: %d\n", result);
 }
-void instance_destroy() {
-    vkDestroyInstance(instance, NULL);
-}
 
+void createSurface() {
+    printf("current extensions:\n");
+    for(int i = 0; i < extensionCount; i++) {
+        printf("\t%s\n", extensionNames[i]);
+    }
+    SDL_bool result = SDL_Vulkan_CreateSurface(window_getMain(), instance, &surface);
+    switch (result) {
+        case SDL_TRUE:
+            printf("SDL_Vulkan_CreateSurface result: SDL_TRUE\n");
+            break;
+        case SDL_FALSE:
+            printf("SDL_Vulkan_CreateSurface result: SDL_FALSE\n");
+            break;
+    }
+
+}
 
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
     QueueFamilyIndices indices;
@@ -128,7 +160,7 @@ b8 isDeviceSuitable(VkPhysicalDevice device) {
     return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
            deviceFeatures.geometryShader;
 }
-void instance_pickPhysicalDevice() {
+void pickPhysicalDevice() {
     u32 deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
     if(deviceCount == 0) {
@@ -150,3 +182,57 @@ void instance_pickPhysicalDevice() {
 
 }
 
+void createLogicalDevice() {
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+    VkDeviceQueueCreateInfo queueCreateInfo = {0};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.data;
+    queueCreateInfo.queueCount = 1;
+    f32 queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+
+    VkPhysicalDeviceFeatures deviceFeatures = {VK_FALSE};
+
+    VkDeviceCreateInfo createInfo = {0};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+
+    createInfo.enabledExtensionCount = 0;
+    createInfo.enabledLayerCount = 0;
+    // device-specific validation layers are deprecated, but we enable them anyway
+    if(enableValidationLayers) {
+        createInfo.enabledLayerCount = VALIDATION_LAYERS_COUNT;
+        createInfo.ppEnabledLayerNames = validationLayers;
+    }
+
+    VkResult result = vkCreateDevice(physicalDevice, &createInfo, NULL, &device);
+    printf("vkCreateDevice result: %d\n", result);
+
+    vkGetDeviceQueue(device, indices.graphicsFamily.data, 0, &graphicsQueue);
+
+
+
+}
+
+void bigvulkan_init(u32 exCount, const char **exNames) {
+    extensionCount = exCount;
+    extensionNames = exNames;
+
+
+    createInstance();
+    createSurface();
+    pickPhysicalDevice();
+    createLogicalDevice();
+
+}
+void bigvulkan_cleanup() {
+    vkDestroyDevice(device, NULL);
+    vkDestroySurfaceKHR(instance, surface, NULL);
+    vkDestroyInstance(instance, NULL);
+
+}

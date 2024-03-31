@@ -3,7 +3,7 @@
 #include "SDL/renderer.h"
 #include "SDL/input.h"
 #include "pipeline.h"
-#include "instance.h"
+#include "bigvulkan.h"
 #include <unistd.h>
 
 engine_t *engine;
@@ -15,7 +15,7 @@ b8 engine_start() {
         engine = &lEngine;
     }
 
-    // variables for extensions required by SDL
+    // variables for extensions required by SDL 
     u32 extensionCount = 30;
     char *exNames[30];
     const char **extensionNames = (const char **)exNames; // lol
@@ -28,10 +28,7 @@ b8 engine_start() {
 
     pipeline_init("resource/simple_shader.vert.spv", "resource/simple_shader.frag.spv");
 
-
-    // maybe move all the vulkan inits to a seperate function
-    instance_init(&extensionCount, extensionNames);
-    instance_pickPhysicalDevice();
+    bigvulkan_init(extensionCount, extensionNames);
 
 
     printf("starting engine\n\n");
@@ -50,7 +47,7 @@ b8 engine_start() {
         usleep(33);
     }
     printf("stopping engine\n");
-    instance_destroy();
+    bigvulkan_cleanup();
     renderer_destroy();
     window_destroy();
     return 0;
