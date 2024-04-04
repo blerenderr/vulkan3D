@@ -30,3 +30,19 @@ void* utils_readFile(const char filename[], u32 *size, u32 bytesPerType) {
 
     return data;
 }
+
+b8 utils_writeFileString(const char filename[], const char message[]) {
+    FILE *file;
+    file = fopen(filename, "a"); // append mode
+
+    if(file == NULL) {
+        return FALSE;
+    }
+
+    fprintf(file, "%s", message);
+
+    fclose(file);
+
+    return TRUE;
+
+}

@@ -1,8 +1,7 @@
 #include "window.h"
 #include "../utils.h"
+#include "../report.h"
 #include <SDL_hints.h>
-#include <SDL_pixels.h>
-#include <SDL_surface.h>
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
@@ -16,7 +15,7 @@ void setWindowIcon() {
     void *imgData = utils_readFile("resource/icon.data", &imgSize, 1);
 
     if(imgData == NULL) {
-        printf("[WARNING] couldn't find resource/icon.data, falling back to default\n");
+        report_warning("setWindowIcon()","couldn't find resource/icon.data, falling back to default");
         return;
     }
 
@@ -33,22 +32,20 @@ void setWindowIcon() {
 
 b8 window_init(u32 *extensionCount, const char **extensionNames) {
     SDL_Window *pWindow = SDL_CreateWindow("hi", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-                                            SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+                                            SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_VULKAN);
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
-
     u32 exCount;
     vkEnumerateInstanceExtensionProperties(NULL, &exCount, NULL);
-    printf("vulkan extensions supported by local install: %i\n", exCount);
-
+    report_info("window_init()","vulkan extensions supported by local install: %u", exCount);
 
     if(pWindow == NULL) {
-        printf("failed to create window\n");
+        report_fatal("window_init()","failed to create window");
         return FALSE;
     }
     mainWindow = pWindow;
 
     if(SDL_Vulkan_GetInstanceExtensions(mainWindow, extensionCount, extensionNames) == SDL_FALSE) {
-        printf("failed to get needed vulkan extensions from SDL\n");
+        report_error("window_init()","failed to get needed vulkan extensions from SDL");
         return FALSE;
     }
 

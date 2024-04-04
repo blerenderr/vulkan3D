@@ -1,10 +1,14 @@
 #include "bigvulkan.h"
 #include "types.h"
 #include "SDL/window.h"
+#include <SDL_platform.h>
+#include <SDL_video.h>
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "report.h"
 
 
 VkInstance instance;
@@ -65,7 +69,7 @@ b8 checkVLayerSupport() {
 }
 void createInstance() {
     if(enableValidationLayers && !checkVLayerSupport()) {
-        printf("requested validation layers are not available!\n");
+        report_error("createInstance()","requested validation layers are not available!");
     }
     VkApplicationInfo appInfo = {0};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -93,6 +97,8 @@ void createInstance() {
         // remember, extensionCount is the total elements and we're indexing into the next one
         extensionNames[extensionCount] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
         extensionCount++;
+        extensionNames[extensionCount] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
+        extensionCount++;
     }
 
     // pass in our parameters
@@ -101,22 +107,22 @@ void createInstance() {
 
 
     VkResult result = vkCreateInstance(&createInfo, NULL, &instance);
-    printf("vkCreateInstance result: %d\n", result);
+    if(result != VK_SUCCESS) {
+        report_fatal("createInstance()", "vkCreateInstance() was not successful");
+    }
 }
 
 void createSurface() {
-    printf("current extensions:\n");
+    report_info("createSurface()","current extensions:");
     for(int i = 0; i < extensionCount; i++) {
-        printf("\t%s\n", extensionNames[i]);
+        report_info("createSurface()","\t%s", extensionNames[i]);
     }
-    SDL_bool result = SDL_Vulkan_CreateSurface(window_getMain(), instance, &surface);
-    switch (result) {
-        case SDL_TRUE:
-            printf("SDL_Vulkan_CreateSurface result: SDL_TRUE\n");
-            break;
-        case SDL_FALSE:
-            printf("SDL_Vulkan_CreateSurface result: SDL_FALSE\n");
-            break;
+    SDL_Window *window = window_getMain();
+
+    SDL_bool result = SDL_Vulkan_CreateSurface(window, instance, &surface);
+    if(result == SDL_FALSE) {
+        // promote to a fatal later
+        report_error("createSurface()", "SDL_Vulkan_CreateSurface() failed, reason: %s", SDL_GetError());
     }
 
 }
@@ -164,7 +170,7 @@ void pickPhysicalDevice() {
     u32 deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
     if(deviceCount == 0) {
-        printf("failed to find GPUs with vulkan support!\n");
+        report_fatal("pickPhysicalDevice()", "failed to find a GPU with vulkan support!");
         return;
     }
 
@@ -177,7 +183,7 @@ void pickPhysicalDevice() {
         }
     }
     if(physicalDevice == VK_NULL_HANDLE) {
-        printf("couldn't find GPU with suitable features\n");
+        report_fatal("pickPhysicalDevice()", "couldn't find a GPU with suitable features");
     }
 
 }
@@ -210,8 +216,17 @@ void createLogicalDevice() {
         createInfo.ppEnabledLayerNames = validationLayers;
     }
 
+    // needed for vulkan to not throw a fit on mac
+    if(strcmp(SDL_GetPlatform(), "Mac OS X") == 0) {
+        const char *deviceExtensionNames[1] = {"VK_KHR_portability_subset"};
+        createInfo.ppEnabledExtensionNames = deviceExtensionNames;
+        createInfo.enabledExtensionCount = 1;
+    }
+
     VkResult result = vkCreateDevice(physicalDevice, &createInfo, NULL, &device);
-    printf("vkCreateDevice result: %d\n", result);
+    if(result != VK_SUCCESS) {
+        report_fatal("createLogicalDevice()", "vkCreateDevice was not successful");
+    }
 
     vkGetDeviceQueue(device, indices.graphicsFamily.data, 0, &graphicsQueue);
 

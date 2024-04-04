@@ -1,15 +1,16 @@
 #include "renderer.h"
+#include "../report.h"
 
 SDL_Renderer *mainRenderer;
 
 b8 renderer_init(SDL_Window *mainWindow) {
     SDL_Renderer *pRenderer = SDL_CreateRenderer(mainWindow, 0, SDL_RENDERER_ACCELERATED);
     if(pRenderer == NULL) {
-        printf("failed to create SDL renderer\n");
-        return 1;
+        report_fatal("renderer_init()", "failed to create SDL renderer");
+        return FALSE;
     }
     mainRenderer = pRenderer;
-    return 0;
+    return TRUE;
 }
 
 SDL_Renderer* renderer_getMain() {
@@ -18,10 +19,10 @@ SDL_Renderer* renderer_getMain() {
 
 b8 renderer_clear() {
     b8 result = 0;
-    result += SDL_SetRenderDrawColor(mainRenderer, 64,64,64,0);
+    result += SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 0);
     result += SDL_RenderClear(mainRenderer);
-    if(result > 0) {
-        printf("renderer_clear failed\n");
+    if(result != 0) {
+        report_error("renderer_clear()", "SDL clearing functions failed");
     }
     return result;
 }

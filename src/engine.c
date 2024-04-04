@@ -4,6 +4,9 @@
 #include "SDL/input.h"
 #include "pipeline.h"
 #include "bigvulkan.h"
+
+#include "report.h"
+
 #include <unistd.h>
 
 engine_t *engine;
@@ -31,7 +34,7 @@ b8 engine_start() {
     bigvulkan_init(extensionCount, extensionNames);
 
 
-    printf("starting engine\n\n");
+    report_info("engine_start()", "inits complete, starting engine\n");
     while(engine->isRunning) {
         renderer_clear();
         // stuff
@@ -40,17 +43,17 @@ b8 engine_start() {
             engine->isRunning = FALSE;
         }
 
-        SDL_SetRenderDrawColor(renderer_getMain(), 0,0,0,0);
+        SDL_SetRenderDrawColor(renderer_getMain(), 255,255,255,0);
         SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);
 
         renderer_present();
         usleep(33);
     }
-    printf("stopping engine\n");
+    report_info("engine_start()", "engine has stopped, performing cleanup");
     bigvulkan_cleanup();
     renderer_destroy();
     window_destroy();
-    return 0;
+    return TRUE;
 }
 
 engine_t* engine_get() {
