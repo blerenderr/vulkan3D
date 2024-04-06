@@ -13,6 +13,8 @@
 
 VkInstance instance;
 
+VkDebugUtilsMessengerEXT debugMessenger;
+
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
 // vulkan logical device
@@ -41,7 +43,7 @@ typedef struct QueueFamilyIndices {
     optional_u32 graphicsFamily;
 } QueueFamilyIndices;
 
-
+void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *createInfo);
 
 b8 checkVLayerSupport() {
     u32 layerCount = 0;
@@ -83,11 +85,18 @@ void createInstance() {
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {0};
     createInfo.enabledLayerCount = 0;
     if(enableValidationLayers) {
         createInfo.enabledLayerCount = VALIDATION_LAYERS_COUNT;
         createInfo.ppEnabledLayerNames = validationLayers;
+
+        // used for message callback
+        extensionNames[extensionCount] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+        extensionCount++;
+
+        populateDebugMessengerCreateInfo(&debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
     }
 
     // needed for vulkan to not throw a fit on mac
@@ -112,14 +121,85 @@ void createInstance() {
     }
 }
 
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData) {
+
+    switch(messageSeverity) {
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+            report_info("Vulkan Callback", pCallbackData->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+            report_warning("Vulkan Callback", pCallbackData->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+            report_error("Vulkan Callback", pCallbackData->pMessage);
+            break;
+        default: // there's one more enum value that's not used i think
+            break;
+    }
+
+    return VK_FALSE;
+}
+VkResult CreateDebugUtilsMessengerEXT(
+    VkInstance instance, 
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
+    const VkAllocationCallbacks* pAllocator, 
+    VkDebugUtilsMessengerEXT* pDebugMessenger) {
+
+    PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != NULL) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+void DestroyDebugUtilsMessengerEXT(
+    VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks* pAllocator) {
+    
+    PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != NULL) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *createInfo)  {
+    createInfo->sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo->messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | 
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo->messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo->pfnUserCallback = debugCallback;
+    createInfo->pNext = NULL;
+    createInfo->flags = 0;
+
+}
+void setupDebugMessenger() {
+    if(!enableValidationLayers) {return;}
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    populateDebugMessengerCreateInfo(&createInfo);
+
+    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, NULL, &debugMessenger) != VK_SUCCESS) {
+        report_warning("setupDebugMessenger()", "failed to set up debug messenger!");
+    }
+
+
+    
+}
+
 void createSurface() {
     report_info("createSurface()","current extensions:");
     for(int i = 0; i < extensionCount; i++) {
         report_info("createSurface()","\t%s", extensionNames[i]);
     }
-    SDL_Window *window = window_getMain();
 
-    SDL_bool result = SDL_Vulkan_CreateSurface(window, instance, &surface);
+    SDL_bool result = SDL_Vulkan_CreateSurface(window_getMain(), instance, &surface);
     if(result == SDL_FALSE) {
         // promote to a fatal later
         report_error("createSurface()", "SDL_Vulkan_CreateSurface() failed, reason: %s", SDL_GetError());
@@ -240,14 +320,16 @@ void bigvulkan_init(u32 exCount, const char **exNames) {
 
 
     createInstance();
+    setupDebugMessenger();
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
 
 }
-void bigvulkan_cleanup() {
+void bigvulkan_cleanup() { // first created, last destroyed
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
+    if(enableValidationLayers) {DestroyDebugUtilsMessengerEXT(instance, debugMessenger, NULL);}
     vkDestroyInstance(instance, NULL);
 
 }

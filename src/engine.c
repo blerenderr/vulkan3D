@@ -24,7 +24,7 @@ b8 engine_start() {
     const char **extensionNames = (const char **)exNames; // lol
 
     window_init(&extensionCount, extensionNames);
-    renderer_init(window_getMain());
+    //renderer_init(window_getMain());
 
     SDL_Event event; // needs to be kept in scope or else input causes a segfault
     input_init(&event);
@@ -36,22 +36,22 @@ b8 engine_start() {
 
     report_info("engine_start()", "inits complete, starting engine\n");
     while(engine->isRunning) {
-        renderer_clear();
+        //renderer_clear();
         // stuff
 
         if(!input_handle()) {
             engine->isRunning = FALSE;
         }
 
-        SDL_SetRenderDrawColor(renderer_getMain(), 255,255,255,0);
-        SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);
+        //SDL_SetRenderDrawColor(renderer_getMain(), 255,255,255,0);
+        //SDL_RenderDrawLine(renderer_getMain(), 0,0,400,400);
 
-        renderer_present();
+        //renderer_present();
         usleep(33);
     }
     report_info("engine_start()", "engine has stopped, performing cleanup");
     bigvulkan_cleanup();
-    renderer_destroy();
+    //renderer_destroy();
     window_destroy();
     return TRUE;
 }

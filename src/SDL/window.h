@@ -7,5 +7,6 @@
 
 b8 window_init(u32 *extensionCount, const char **extensionNames);
 SDL_Window* window_getMain();
+u32 window_getMainID();
 void window_destroy();
 

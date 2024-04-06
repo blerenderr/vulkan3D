@@ -7,6 +7,7 @@
 
 
 SDL_Window *mainWindow;
+u32 mainWindowID;
 SDL_Surface *windowIcon;
 void *windowIconData;
 
@@ -43,6 +44,7 @@ b8 window_init(u32 *extensionCount, const char **extensionNames) {
         return FALSE;
     }
     mainWindow = pWindow;
+    mainWindowID = SDL_GetWindowID(pWindow);
 
     if(SDL_Vulkan_GetInstanceExtensions(mainWindow, extensionCount, extensionNames) == SDL_FALSE) {
         report_error("window_init()","failed to get needed vulkan extensions from SDL");
@@ -56,6 +58,9 @@ b8 window_init(u32 *extensionCount, const char **extensionNames) {
 
 SDL_Window* window_getMain() {
     return mainWindow;
+}
+u32 window_getMainID() {
+    return mainWindowID;
 }
 void window_destroy() {
     SDL_DestroyWindow(mainWindow);

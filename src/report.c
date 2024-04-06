@@ -4,10 +4,19 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define REPORT_BUFFER_SIZE 256
+#define REPORT_BUFFER_SIZE 512
 
 char buffer1[REPORT_BUFFER_SIZE];
 char buffer2[REPORT_BUFFER_SIZE];
+
+typedef enum ReportLevel {
+    INFO = 0,
+    WARNING = 1,
+    ERROR = 2,
+    FATAL = 3
+} ReportLevel;
+
+ReportLevel stdoutReportLevel = WARNING;
 
 void report_clearLog() {
     FILE *file;
@@ -23,7 +32,9 @@ void report_info(const char function[], const char message[], ...) {
     snprintf(buffer2, REPORT_BUFFER_SIZE, "[INFO] %s: %s\n", function, buffer1);
     va_end(args);
     utils_writeFileString("log.txt", buffer2);
-    printf("%s", buffer2);
+    if(INFO >= stdoutReportLevel) {
+        printf("%s", buffer2);
+    }
 
 }
 
@@ -35,7 +46,9 @@ void report_warning(const char function[], const char message[], ...) {
     snprintf(buffer2, REPORT_BUFFER_SIZE, "[WARNING] %s: %s\n", function, buffer1);
     va_end(args);
     utils_writeFileString("log.txt", buffer2);
-    printf("%s", buffer2);
+    if(WARNING >= stdoutReportLevel) {
+        printf("%s", buffer2);
+    }
 
 }
 
@@ -47,7 +60,9 @@ void report_error(const char function[], const char message[], ...) {
     snprintf(buffer2, REPORT_BUFFER_SIZE, "[ERROR] %s: %s\n", function, buffer1);
     va_end(args);
     utils_writeFileString("log.txt", buffer2);
-    printf("%s", buffer2);
+    if(ERROR >= stdoutReportLevel) {
+        printf("%s", buffer2);
+    }
 
 }
 
@@ -59,7 +74,9 @@ void report_fatal(const char function[], const char message[], ...) {
     snprintf(buffer2, REPORT_BUFFER_SIZE, "[FATAL] %s: %s\n", function, buffer1);
     va_end(args);
     utils_writeFileString("log.txt", buffer2);
-    printf("%s", buffer2);
+    if(FATAL >= stdoutReportLevel) {
+        printf("%s", buffer2);
+    }
 
     exit(1);
 }
