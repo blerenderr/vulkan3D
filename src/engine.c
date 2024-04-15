@@ -51,6 +51,7 @@ b8 engine_start() {
     }
     report_info("engine_start()", "engine has stopped, performing cleanup");
     bigvulkan_cleanup();
+    pipeline_cleanup();
     //renderer_destroy();
     window_destroy();
     return TRUE;

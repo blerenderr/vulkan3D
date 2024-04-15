@@ -4,6 +4,8 @@ binary := vulkan3D
 includeFlags := -Isrc/ -I$(VULKAN_SDK)/include/
 linkerFlags := -lvulkan -L$(VULKAN_SDK)/lib/
 
+default: shaders release
+
 setup:
 	mkdir -p ./bin/resource
 	cp icon.data ./bin/resource/
@@ -23,6 +25,10 @@ run:
 	cd ./bin/ && ./$(binary)
 
 check: debug
-	cd ./bin/ && valgrind --leak-check=yes $(binary)
+	cd ./bin/ && valgrind --leak-check=yes --track-origins=yes ./$(binary)
+
+clean:
+	rm ./bin/resource/simple_shader.vert.spv ./bin/resource/simple_shader.frag.spv
+	rm ./bin/$(binary)
 
 fresh: shaders debug run

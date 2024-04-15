@@ -16,3 +16,8 @@ void pipeline_init(char vertFilepath[], char fragFilepath[]) {
 
 
 }
+void pipeline_cleanup() {
+    utils_free(pipeline->vertCode);
+    utils_free(pipeline->fragCode);
+
+}

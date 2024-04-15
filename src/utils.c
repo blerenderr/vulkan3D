@@ -30,6 +30,9 @@ void* utils_readFile(const char filename[], u32 *size, u32 bytesPerType) {
 
     return data;
 }
+void utils_free(void *ptr) {
+    free(ptr);
+}
 
 b8 utils_writeFileString(const char filename[], const char message[]) {
     FILE *file;

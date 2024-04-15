@@ -239,12 +239,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/bigvulkan-b7d964.o",
+      "/tmp/bigvulkan-aa8fa6.o",
       "./src/bigvulkan.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/bigvulkan.c",
-    "output": "/tmp/bigvulkan-b7d964.o"
+    "output": "/tmp/bigvulkan-aa8fa6.o"
   },
   {
     "arguments": [
@@ -315,12 +315,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/engine-ebb15a.o",
+      "/tmp/engine-a766d3.o",
       "./src/engine.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/engine.c",
-    "output": "/tmp/engine-ebb15a.o"
+    "output": "/tmp/engine-a766d3.o"
   },
   {
     "arguments": [
@@ -391,12 +391,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/main-ba032d.o",
+      "/tmp/main-a1d1ae.o",
       "./src/main.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/main.c",
-    "output": "/tmp/main-ba032d.o"
+    "output": "/tmp/main-a1d1ae.o"
   },
   {
     "arguments": [
@@ -467,12 +467,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/pipeline-2e0f1c.o",
+      "/tmp/pipeline-1b415b.o",
       "./src/pipeline.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/pipeline.c",
-    "output": "/tmp/pipeline-2e0f1c.o"
+    "output": "/tmp/pipeline-1b415b.o"
   },
   {
     "arguments": [
@@ -543,12 +543,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/report-60ff0b.o",
+      "/tmp/report-032180.o",
       "./src/report.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/report.c",
-    "output": "/tmp/report-60ff0b.o"
+    "output": "/tmp/report-032180.o"
   },
   {
     "arguments": [
@@ -619,12 +619,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/utils-008bcc.o",
+      "/tmp/utils-e86181.o",
       "./src/utils.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/utils.c",
-    "output": "/tmp/utils-008bcc.o"
+    "output": "/tmp/utils-e86181.o"
   },
   {
     "arguments": [
@@ -695,12 +695,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/input-2f631d.o",
+      "/tmp/input-6eb72a.o",
       "./src/SDL/input.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/SDL/input.c",
-    "output": "/tmp/input-2f631d.o"
+    "output": "/tmp/input-6eb72a.o"
   },
   {
     "arguments": [
@@ -771,12 +771,12 @@
       "-x",
       "c",
       "-o",
-      "/tmp/renderer-ac4865.o",
+      "/tmp/renderer-48204b.o",
       "./src/SDL/renderer.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/SDL/renderer.c",
-    "output": "/tmp/renderer-ac4865.o"
+    "output": "/tmp/renderer-48204b.o"
   },
   {
     "arguments": [
@@ -847,11 +847,11 @@
       "-x",
       "c",
       "-o",
-      "/tmp/window-1e589e.o",
+      "/tmp/window-2317ea.o",
       "./src/SDL/window.c"
     ],
     "directory": "/home/klubstr/projects/C/vulkan3D",
     "file": "/home/klubstr/projects/C/vulkan3D/src/SDL/window.c",
-    "output": "/tmp/window-1e589e.o"
+    "output": "/tmp/window-2317ea.o"
   }
 ]

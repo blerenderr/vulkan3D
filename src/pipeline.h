@@ -9,3 +9,4 @@ typedef struct pipeline_t {
 } pipeline_t;
 
 void pipeline_init(char vertFilepath[], char fragFilepath[]);
+void pipeline_cleanup();
