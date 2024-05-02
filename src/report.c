@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define REPORT_BUFFER_SIZE 512
+#define REPORT_BUFFER_SIZE 1024
 
 char buffer1[REPORT_BUFFER_SIZE];
 char buffer2[REPORT_BUFFER_SIZE];

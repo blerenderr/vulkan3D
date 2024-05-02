@@ -1,4 +1,5 @@
 #include "bigvulkan.h"
+#include "SDL_joystick.h"
 #include "types.h"
 #include "SDL/window.h"
 #include <SDL_platform.h>
@@ -22,11 +23,18 @@ VkDevice device;
 
 
 VkQueue graphicsQueue;
-
+VkQueue presentQueue;
 
 VkSurfaceKHR surface;
 
+VkSwapchainKHR swapChain;
 
+VkImage *swapChainImages;
+u32 swapChainImageCount;
+VkFormat swapChainImageFormat;
+VkExtent2D swapChainExtent;
+
+// instance extensions
 u32 extensionCount;
 const char **extensionNames;
 
@@ -39,9 +47,23 @@ const b8 enableValidationLayers = FALSE;
 #define VALIDATION_LAYERS_COUNT 1
 const char* validationLayers[VALIDATION_LAYERS_COUNT] = {"VK_LAYER_KHRONOS_validation"};
 
+#define DEVICE_EXTENSIONS_COUNT 1
+const char* deviceExtensions[DEVICE_EXTENSIONS_COUNT] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+#define QUEUE_FAMILY_COUNT 2
+
 typedef struct QueueFamilyIndices {
     optional_u32 graphicsFamily;
+    optional_u32 presentFamily;
 } QueueFamilyIndices;
+
+typedef struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    u32 formatCount;
+    VkSurfaceFormatKHR* formats;
+    u32 presentModeCount;
+    VkPresentModeKHR* presentModes;
+} SwapChainSupportDetails;
 
 void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *createInfo);
 
@@ -210,20 +232,26 @@ void createSurface() {
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
     QueueFamilyIndices indices;
     indices.graphicsFamily.hasValue = FALSE;
+    indices.graphicsFamily.hasValue = FALSE;
 
     u32 queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, NULL);
     VkQueueFamilyProperties queueFamilies[queueFamilyCount];
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies);
 
-
+    VkBool32 presentSupport = FALSE;
     for(int i = 0; i < queueFamilyCount; i++) {
         if(queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily.data = i;
             indices.graphicsFamily.hasValue = TRUE;
         }
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+        if(presentSupport) {
+            indices.presentFamily.data = i;
+            indices.presentFamily.hasValue = TRUE;
+        }
 
-        if(indices.graphicsFamily.hasValue) {
+        if(indices.graphicsFamily.hasValue && indices.presentFamily.hasValue) {
             break;
         }
     }
@@ -232,9 +260,62 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
 
     return indices;
 }
+b8 checkDeviceExtensionSupport(VkPhysicalDevice device) {
+    u32 devExtensionCount;
+    vkEnumerateDeviceExtensionProperties(device, NULL, &devExtensionCount, NULL);
+    VkExtensionProperties availableExtensions[devExtensionCount];
+
+    vkEnumerateDeviceExtensionProperties(device, NULL, &devExtensionCount, availableExtensions);
+    for(int i = 0; i < DEVICE_EXTENSIONS_COUNT; i++) {
+        const char *extensionName = deviceExtensions[i];
+        b8 extensionFound = FALSE;
+
+        for(int j = 0; j < devExtensionCount; j++) {
+            if(strcmp(extensionName, availableExtensions[j].extensionName) == 0) {
+                extensionFound = TRUE;
+                break;
+            }
+        }
+
+        if(!extensionFound) {
+            return FALSE;
+        }
+
+    }
+    return TRUE;
+    
+}
+SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
+    SwapChainSupportDetails details = {0};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+    VkResult result;
+
+    details.formatCount = 0;
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, NULL);
+    //if(details.formatCount != 0) {
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, details.formats);
+    //}
+
+    details.presentModeCount = 0;
+    result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, NULL);
+    //if(details.presentModeCount != 0) {    
+    result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, details.presentModes);
+    //}
+ 
+
+
+    return details;
+}
 b8 isDeviceSuitable(VkPhysicalDevice device) {
     QueueFamilyIndices indices = findQueueFamilies(device);
-    return indices.graphicsFamily.hasValue;
+
+    b8 extensionsSupported = checkDeviceExtensionSupport(device);
+
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
+    b8 swapChainGood = swapChainSupport.formatCount >= 1 && swapChainSupport.presentModeCount >= 1;
+
+    return indices.graphicsFamily.hasValue && indices.presentFamily.hasValue && extensionsSupported && swapChainGood;
 
     VkPhysicalDeviceProperties deviceProperties;
     vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -271,24 +352,35 @@ void pickPhysicalDevice() {
 void createLogicalDevice() {
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-    VkDeviceQueueCreateInfo queueCreateInfo = {0};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.data;
-    queueCreateInfo.queueCount = 1;
+    u32 uniqueQueueFamilies[QUEUE_FAMILY_COUNT] = {indices.graphicsFamily.data, indices.presentFamily.data};
+    VkDeviceQueueCreateInfo queueCreateInfos[QUEUE_FAMILY_COUNT] = {0};
     f32 queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    for(int i = 0; i < QUEUE_FAMILY_COUNT; i++) {
+        queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfos[i].queueFamilyIndex = uniqueQueueFamilies[i];
+        queueCreateInfos[i].queueCount = 1;
+        queueCreateInfos[i].pQueuePriorities = &queuePriority;
+    }
 
 
     VkPhysicalDeviceFeatures deviceFeatures = {VK_FALSE};
 
     VkDeviceCreateInfo createInfo = {0};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.pQueueCreateInfos = queueCreateInfos;
+    /*
+        hack: both of the queue create infos have the same data and the spec doesn't like that they share incidies so
+        we just tell this struct there's only one
+    */
     createInfo.queueCreateInfoCount = 1;
     createInfo.pEnabledFeatures = &deviceFeatures;
 
 
-    createInfo.enabledExtensionCount = 0;
+    createInfo.enabledExtensionCount = DEVICE_EXTENSIONS_COUNT;
+    createInfo.ppEnabledExtensionNames = deviceExtensions;
+
+
     createInfo.enabledLayerCount = 0;
     // device-specific validation layers are deprecated, but we enable them anyway
     if(enableValidationLayers) {
@@ -309,10 +401,97 @@ void createLogicalDevice() {
     }
 
     vkGetDeviceQueue(device, indices.graphicsFamily.data, 0, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.presentFamily.data, 0, &presentQueue);
 
 
 
 }
+
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(VkSurfaceFormatKHR *availableFormats, u32 formatCount) {
+    for(int i = 0; i < formatCount; i++) {
+        VkSurfaceFormatKHR availableFormat = availableFormats[i];
+        if(availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return availableFormat;
+        }
+    }
+    return availableFormats[0];
+}
+VkPresentModeKHR chooseSwapPresentMode(VkPresentModeKHR *availablePresentModes, u32 presentModeCount) {
+    return VK_PRESENT_MODE_FIFO_KHR; // basically vsync
+}
+VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR *capabilities) {
+    /*
+        no hi-dpi support for you, better hope this is the right resolution
+        see https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+    */
+    return capabilities->currentExtent;
+    
+}
+
+void createSwapChain() {
+    SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
+
+    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats, swapChainSupport.formatCount);
+    VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes, swapChainSupport.presentModeCount);
+    VkExtent2D extent = chooseSwapExtent(&swapChainSupport.capabilities);
+
+    /*
+        from vulkan-tutorial.com: "[...] simply sticking to this minimum means that we may sometimes have to wait 
+        on the driver to complete internal operations before we can acquire another image to render to. 
+        Therefore it is recommended to request at least one more image than the minimum"
+    */
+    u32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
+
+    if(swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
+        imageCount = swapChainSupport.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR createInfo = {0};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = surface;
+    createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = surfaceFormat.format;
+    createInfo.imageColorSpace = surfaceFormat.colorSpace;
+    createInfo.imageExtent = extent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    u32 queueFamilyIndices[2] = {indices.graphicsFamily.data, indices.presentFamily.data};
+    if(indices.graphicsFamily.hasValue && indices.presentFamily.hasValue) {
+        if(indices.graphicsFamily.data != indices.presentFamily.data) {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+        else {
+            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            createInfo.queueFamilyIndexCount = 0;
+            createInfo.pQueueFamilyIndices = NULL;
+        }
+    }
+
+    createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = presentMode;
+    createInfo.clipped = VK_TRUE;
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    if(vkCreateSwapchainKHR(device, &createInfo, NULL, &swapChain)!= VK_SUCCESS) {
+        report_error("createSwapChain()", "failed to create the swap chain");
+    }
+
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, NULL);
+    swapChainImageCount = imageCount;
+    vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages);
+
+    // store our stuff for later
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainExtent = extent;
+
+}
+
+
 
 void bigvulkan_init(u32 exCount, const char **exNames) {
     extensionCount = exCount;
@@ -324,9 +503,11 @@ void bigvulkan_init(u32 exCount, const char **exNames) {
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+    createSwapChain();
 
 }
 void bigvulkan_cleanup() { // first created, last destroyed
+    vkDestroySwapchainKHR(device, swapChain, NULL);
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
     if(enableValidationLayers) {DestroyDebugUtilsMessengerEXT(instance, debugMessenger, NULL);}
