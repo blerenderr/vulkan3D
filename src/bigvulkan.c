@@ -34,6 +34,9 @@ u32 swapChainImageCount;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
 
+VkImageView *swapChainImageViews;
+u32 swapChainImageViewCount;
+
 // instance extensions
 u32 extensionCount;
 const char **extensionNames;
@@ -286,22 +289,25 @@ b8 checkDeviceExtensionSupport(VkPhysicalDevice device) {
     
 }
 SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
-    SwapChainSupportDetails details = {0};
+    SwapChainSupportDetails details;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
 
     VkResult result;
 
     details.formatCount = 0;
     result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, NULL);
-    //if(details.formatCount != 0) {
-    result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, details.formats);
-    //}
+    VkSurfaceFormatKHR formatsArr[details.formatCount];
+
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, formatsArr);
+    details.formats = formatsArr;
 
     details.presentModeCount = 0;
     result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, NULL);
-    //if(details.presentModeCount != 0) {    
-    result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, details.presentModes);
-    //}
+    VkPresentModeKHR modesArr[details.presentModeCount];
+ 
+    result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, modesArr);
+    details.presentModes = modesArr;
+
  
 
 
@@ -381,18 +387,24 @@ void createLogicalDevice() {
     createInfo.ppEnabledExtensionNames = deviceExtensions;
 
 
+    // needed for vulkan to not throw a fit on mac
+    if(strcmp(SDL_GetPlatform(), "Mac OS X") == 0) {
+        const char *neoDeviceExtensions[DEVICE_EXTENSIONS_COUNT+1];
+        for(int i = 0; i < DEVICE_EXTENSIONS_COUNT; i++) {
+            neoDeviceExtensions[i] = deviceExtensions[i];
+        }
+        neoDeviceExtensions[DEVICE_EXTENSIONS_COUNT] = "VK_KHR_portability_subset";
+        createInfo.enabledExtensionCount = DEVICE_EXTENSIONS_COUNT+1;
+        createInfo.ppEnabledExtensionNames = neoDeviceExtensions;
+
+    }
+
+
     createInfo.enabledLayerCount = 0;
     // device-specific validation layers are deprecated, but we enable them anyway
     if(enableValidationLayers) {
         createInfo.enabledLayerCount = VALIDATION_LAYERS_COUNT;
         createInfo.ppEnabledLayerNames = validationLayers;
-    }
-
-    // needed for vulkan to not throw a fit on mac
-    if(strcmp(SDL_GetPlatform(), "Mac OS X") == 0) {
-        const char *deviceExtensionNames[1] = {"VK_KHR_portability_subset"};
-        createInfo.ppEnabledExtensionNames = deviceExtensionNames;
-        createInfo.enabledExtensionCount = 1;
     }
 
     VkResult result = vkCreateDevice(physicalDevice, &createInfo, NULL, &device);
@@ -427,7 +439,6 @@ VkExtent2D chooseSwapExtent(VkSurfaceCapabilitiesKHR *capabilities) {
     return capabilities->currentExtent;
     
 }
-
 void createSwapChain() {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 
@@ -483,7 +494,10 @@ void createSwapChain() {
 
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, NULL);
     swapChainImageCount = imageCount;
-    vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages);
+    VkImage imageArr[imageCount];
+    vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, imageArr);
+    swapChainImages = imageArr;
+
 
     // store our stuff for later
     swapChainImageFormat = surfaceFormat.format;
@@ -491,7 +505,34 @@ void createSwapChain() {
 
 }
 
+void createImageViews() {
+    swapChainImageViewCount = swapChainImageCount;
+    {
+        VkImageView imageViewArr[swapChainImageViewCount];
+        swapChainImageViews = imageViewArr;
+    }
 
+    for(u8 i = 0; i < swapChainImageCount; i++) {
+        VkImageViewCreateInfo createInfo = {0};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image = swapChainImages[i];
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format = swapChainImageFormat;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = 1;
+
+        if(vkCreateImageView(device, &createInfo, NULL, &swapChainImageViews[i]) != VK_SUCCESS) {
+            report_error("createImageViews()", "vkCreateImageView failed for one of the swap images");
+        }
+    }
+}
 
 void bigvulkan_init(u32 exCount, const char **exNames) {
     extensionCount = exCount;
@@ -504,13 +545,17 @@ void bigvulkan_init(u32 exCount, const char **exNames) {
     pickPhysicalDevice();
     createLogicalDevice();
     createSwapChain();
+    createImageViews();
 
 }
 void bigvulkan_cleanup() { // first created, last destroyed
+    for(int i = 0; i < swapChainImageViewCount; i++) {
+        vkDestroyImageView(device, swapChainImageViews[i], NULL);
+    }
     vkDestroySwapchainKHR(device, swapChain, NULL);
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
     if(enableValidationLayers) {DestroyDebugUtilsMessengerEXT(instance, debugMessenger, NULL);}
     vkDestroyInstance(instance, NULL);
 
-}
+    }
