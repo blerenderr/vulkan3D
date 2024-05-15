@@ -2,8 +2,8 @@
 #include "../types.h"
 #include <SDL_video.h>
 
-#define SCREEN_HEIGHT 400
-#define SCREEN_WIDTH 400
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
 b8 window_init(u32 *extensionCount, const char **extensionNames);
 SDL_Window* window_getMain();
