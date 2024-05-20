@@ -9,14 +9,14 @@
 char buffer1[REPORT_BUFFER_SIZE];
 char buffer2[REPORT_BUFFER_SIZE];
 
-typedef enum ReportLevel {
+typedef enum {
     INFO = 0,
     WARNING = 1,
     ERROR = 2,
     FATAL = 3
-} ReportLevel;
+} report_level_t;
 
-ReportLevel stdoutReportLevel = WARNING;
+report_level_t stdoutReportLevel = WARNING;
 
 void report_clearLog() {
     FILE *file;

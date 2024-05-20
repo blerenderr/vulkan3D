@@ -1,21 +1,29 @@
 #include "input.h"
 
-input_t input;
+input_t * input_state;
+input_t ** state = &input_state;
 
-void input_init(SDL_Event *event) {
-    input.event = event;
+
+void input_init() {
+    *state = (input_t * )malloc(sizeof(input_t));
+    (*state)->event = (SDL_Event * )malloc(sizeof(SDL_Event));
 }
 
 b8 input_handle() {
-    if(SDL_PollEvent(input.event)) {
-        if(input.event->type == SDL_QUIT) { 
+    if(SDL_PollEvent((*state)->event)) {
+        if((*state)->event->type == SDL_QUIT) { 
             return FALSE; 
         }
-        switch(input.event->key.keysym.sym) {
+        switch((*state)->event->key.keysym.sym) {
             case 'q':
                 return FALSE;
             break;
         } 
     }
     return TRUE;
+}
+
+void input_cleanup() {
+    free((*state)->event);
+    free(*state);
 }

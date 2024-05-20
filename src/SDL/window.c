@@ -6,9 +6,8 @@
 #include <vulkan/vulkan.h>
 
 
-SDL_Window *mainWindow;
-u32 mainWindowID;
-SDL_Surface *windowIcon;
+SDL_Window * mainWindow;
+SDL_Surface * windowIcon;
 void *windowIconData;
 
 void setWindowIcon() {
@@ -30,10 +29,9 @@ void setWindowIcon() {
 
 
 }
-
 b8 window_init(u32 *extensionCount, const char **extensionNames) {
     SDL_Window *pWindow = SDL_CreateWindow("hi", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-                                            SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_VULKAN);
+                                            SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
     u32 exCount;
     vkEnumerateInstanceExtensionProperties(NULL, &exCount, NULL);
@@ -44,7 +42,6 @@ b8 window_init(u32 *extensionCount, const char **extensionNames) {
         return FALSE;
     }
     mainWindow = pWindow;
-    mainWindowID = SDL_GetWindowID(pWindow);
 
     if(SDL_Vulkan_GetInstanceExtensions(mainWindow, extensionCount, extensionNames) == SDL_FALSE) {
         report_error("window_init()","failed to get needed vulkan extensions from SDL");
@@ -52,16 +49,10 @@ b8 window_init(u32 *extensionCount, const char **extensionNames) {
     }
 
     setWindowIcon();
-    
+
     return TRUE;
 }
 
-SDL_Window* window_getMain() {
-    return mainWindow;
-}
-u32 window_getMainID() {
-    return mainWindowID;
-}
 void window_destroy() {
     SDL_DestroyWindow(mainWindow);
     SDL_FreeSurface(windowIcon);

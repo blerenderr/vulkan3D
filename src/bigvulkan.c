@@ -5,7 +5,8 @@
     Primary function "groups" that include the funcation and its dependents are seperated by newlines.
 */
 #include "bigvulkan.h"
-#include "SDL_joystick.h"
+#include "SDL/input.h"
+#include "SDL_events.h"
 #include "types.h"
 #include "SDL/window.h"
 #include <SDL_platform.h>
@@ -17,6 +18,7 @@
 
 #include "report.h"
 #include "utils.h"
+#include "geometry.h"
 
 const u8 MAX_FRAMES_IN_FLIGHT = 2;
 u32 currentFrame = 0;
@@ -68,6 +70,13 @@ u32 renderFinishedSemaphoreCount;
 
 VkFence *inFlightFences;
 u32 inFlightFenceCount;
+// end unique globals
+
+
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
+VkBuffer indexBuffer;
+VkDeviceMemory indexBufferMemory;
 
 // instance extensions
 u32 extensionCount;
@@ -88,8 +97,8 @@ const char* deviceExtensions[DEVICE_EXTENSIONS_COUNT] = {VK_KHR_SWAPCHAIN_EXTENS
 #define QUEUE_FAMILY_COUNT 2
 
 typedef struct QueueFamilyIndices {
-    optional_u32 graphicsFamily;
-    optional_u32 presentFamily;
+    optional_u32_t graphicsFamily;
+    optional_u32_t presentFamily;
 } QueueFamilyIndices;
 
 typedef struct SwapChainSupportDetails {
@@ -100,8 +109,10 @@ typedef struct SwapChainSupportDetails {
     VkPresentModeKHR* presentModes;
 } SwapChainSupportDetails;
 
+// --------------------------------
+//      BEGIN INIT FUNCTIONS
+// --------------------------------
 void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *createInfo);
-
 b8 checkVLayerSupport() {
     u32 layerCount = 0;
     vkEnumerateInstanceLayerProperties(&layerCount, NULL);
@@ -256,7 +267,7 @@ void createSurface() {
         report_info("createSurface()","\t%s", extensionNames[i]);
     }
 
-    SDL_bool result = SDL_Vulkan_CreateSurface(window_getMain(), instance, &surface);
+    SDL_bool result = SDL_Vulkan_CreateSurface(mainWindow, instance, &surface);
     if(result == SDL_FALSE) {
         // promote to a fatal later
         report_error("createSurface()", "SDL_Vulkan_CreateSurface() failed, reason: %s", SDL_GetError());
@@ -650,12 +661,29 @@ void createGraphicsPipeline() { // loading the shaders twice cuz im lazy
     dynamicState.dynamicStateCount = 2;
     dynamicState.pDynamicStates = dynamicStates;
 
+    // some stuff about our vertex buffer
+    VkVertexInputBindingDescription bindingDescription = {0};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(vertex_t);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription attributeDescriptions[2];
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(vertex_t, pos);
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(vertex_t, color);
+
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {0};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = NULL;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = NULL;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = 2;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {0};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -786,6 +814,127 @@ void createCommandPool() {
 
 }
 
+u32 findMemoryType(u32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for(u32 i = 0; i < memProperties.memoryTypeCount; i++) {
+        if(typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    report_error("findMemoryType()", "couldn't get suitable memory type");
+    return -1;
+}
+void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                VkBuffer* buffer, VkDeviceMemory* bufferMemory) {
+    VkBufferCreateInfo bufferInfo = {0};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if(vkCreateBuffer(device, &bufferInfo, NULL, buffer) != VK_SUCCESS) {
+        report_error("createBuffer()", "vkCreateBuffer failed");
+    }
+
+    VkMemoryRequirements memRequirements = {0};
+    vkGetBufferMemoryRequirements(device, *buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {0};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if(vkAllocateMemory(device, &allocInfo, NULL, bufferMemory) != VK_SUCCESS) {
+        report_error("createBuffer()", "vkAllocateMemory failed");
+    }
+
+    vkBindBufferMemory(device, *buffer, *bufferMemory, 0);
+
+}
+void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    VkCommandBufferAllocateInfo allocInfo = {0};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+
+    VkCommandBufferBeginInfo beginInfo = {0};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion = {0}; // no offsets
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo = {0};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+
+}
+void createVertexBuffer() {
+    VkDeviceSize bufferSize = sizeof(vertex_t) * VERTEX_BUFFER_SIZE;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+        &stagingBuffer, &stagingBufferMemory);
+
+    {
+        void *data;
+        vkMapMemory(device, stagingBufferMemory, 0, VK_WHOLE_SIZE, 0, &data);
+        memcpy(data, geometry_vertices, bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+    }
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &vertexBuffer, &vertexBufferMemory);
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, NULL);
+    vkFreeMemory(device, stagingBufferMemory, NULL);
+
+}
+
+void createIndexBuffer() {
+    VkDeviceSize bufferSize = (sizeof(geometry_indices[0]) * VERTEX_BUFFER_SIZE);
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer, &stagingBufferMemory);
+
+    {
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, geometry_indices, bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+    }
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &indexBuffer, &indexBufferMemory);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    vkDestroyBuffer(device, stagingBuffer, NULL);
+    vkFreeMemory(device, stagingBufferMemory, NULL);
+}
+
 void createCommandBuffers() {
     commandBufferCount = MAX_FRAMES_IN_FLIGHT;
     commandBuffers = malloc(sizeof(VkCommandBuffer) * commandBufferCount);
@@ -844,8 +993,32 @@ void bigvulkan_init(u32 exCount, const char **exNames) {
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
+
+}
+
+// ---------------------------------
+//      BEGIN RUNTIME FUNCTIONS
+// ---------------------------------
+void cleanupSwapChain();
+void recreateSwapChain() {
+    int width = 0, height = 0;
+    SDL_GetWindowSizeInPixels(mainWindow, &width, &height);
+    while(width == 0 || height == 0) {
+        report_warning("recreateSwapChain()", "waiting for big time");
+        SDL_GetWindowSizeInPixels(mainWindow, &width, &height);
+        SDL_WaitEvent(input_state->event);
+    }
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+    createFramebuffers();
 
 }
 
@@ -873,6 +1046,15 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) {
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
+    VkBuffer vertexBuffers[1] = {vertexBuffer};
+    VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+
+
+
     VkViewport viewport = {0};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -887,7 +1069,7 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) {
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, geometry_indicesPos, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -896,14 +1078,20 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, u32 imageIndex) {
     }
 
 }
-
-
 void bigvulkan_drawFrame() {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     u32 imageIndex;
-    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if(result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain();
+        return;
+    }
+
+    // only reset fence if we're going through with the frame
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -934,13 +1122,36 @@ void bigvulkan_drawFrame() {
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapChain();
+    }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
 
 }
 
+// ---------------------------------
+//      BEGIN CLEANUP FUNCTIONS
+// ---------------------------------
+void cleanupSwapChain() {
+    for(int i = 0; i < swapChainFramebufferCount; i++) {
+        vkDestroyFramebuffer(device, swapChainFramebuffers[i], NULL);
+    }
+    free(swapChainFramebuffers);
+
+    // pipeline - images used to be here
+
+    for(int i = 0; i < swapChainImageViewCount; i++) {
+        vkDestroyImageView(device, swapChainImageViews[i], NULL);
+    }
+    free(swapChainImageViews);
+
+
+    vkDestroySwapchainKHR(device, swapChain, NULL);
+}
 void bigvulkan_cleanup() { // first created, last destroyed
     vkDeviceWaitIdle(device);
     for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -953,22 +1164,23 @@ void bigvulkan_cleanup() { // first created, last destroyed
     free(inFlightFences);
     vkDestroyCommandPool(device, commandPool, NULL);
     free(commandBuffers);
-    for(int i = 0; i < swapChainFramebufferCount; i++) {
-        vkDestroyFramebuffer(device, swapChainFramebuffers[i], NULL);
-    }
-    free(swapChainFramebuffers);
+
+    vkDestroyBuffer(device, indexBuffer, NULL);
+    vkFreeMemory(device, indexBufferMemory, NULL);
+
+    vkDestroyBuffer(device, vertexBuffer, NULL);
+    vkFreeMemory(device, vertexBufferMemory, NULL);
+
+    cleanupSwapChain();
+
     vkDestroyPipeline(device, graphicsPipeline, NULL);
     vkDestroyPipelineLayout(device, pipelineLayout, NULL);
     vkDestroyRenderPass(device, renderPass, NULL);
     free(swapChainImages);
-    for(int i = 0; i < swapChainImageViewCount; i++) {
-        vkDestroyImageView(device, swapChainImageViews[i], NULL);
-    }
-    free(swapChainImageViews);
-    vkDestroySwapchainKHR(device, swapChain, NULL);
+
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
     if(enableValidationLayers) {DestroyDebugUtilsMessengerEXT(instance, debugMessenger, NULL);}
     vkDestroyInstance(instance, NULL);
 
-    }
+}

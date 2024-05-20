@@ -1,0 +1,2 @@
+squish all vram buffers into a single VkBuffer for cache reasons
+
