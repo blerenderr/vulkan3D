@@ -1,6 +1,6 @@
 #include "window.h"
-#include "../utils.h"
-#include "../report.h"
+#include "utils.h"
+#include "report.h"
 #include <SDL_hints.h>
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>

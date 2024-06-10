@@ -4,7 +4,7 @@
 #define VERTEX_BUFFER_SIZE 1024
 
 typedef struct {
-    vec2_t pos;
+    vec3_t pos;
     vec3_t color;
 } vertex_t;
 

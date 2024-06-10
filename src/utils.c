@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void* utils_readFile(const char filename[], u32 *size, u32 bytesPerType) {
     FILE *file;
@@ -30,6 +31,10 @@ void* utils_readFile(const char filename[], u32 *size, u32 bytesPerType) {
 
     return data;
 }
+
+void * utils_malloc(unsigned long size) {
+    return malloc(size);
+}
 void utils_free(void *ptr) {
     free(ptr);
 }
@@ -48,4 +53,13 @@ b8 utils_writeFileString(const char filename[], const char message[]) {
 
     return TRUE;
 
+}
+
+vec3_t newVec3(f32 x, f32 y, f32 z) {
+    vec3_t result = {x,y,z};
+    return result;
+}
+
+void utils_copy(void *dst, void *src, u32 size) {
+    memcpy(dst, src, (unsigned long)size);
 }

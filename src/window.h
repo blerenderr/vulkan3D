@@ -1,5 +1,5 @@
 #pragma once
-#include "../types.h"
+#include "types.h"
 #include <SDL_video.h>
 
 #define SCREEN_WIDTH 800

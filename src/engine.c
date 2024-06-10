@@ -1,6 +1,7 @@
 #include "engine.h"
-#include "SDL/window.h"
-#include "SDL/input.h"
+#include "window.h"
+#include "input.h"
+#include "camera.h"
 #include "bigvulkan.h"
 
 #include "geometry.h"
@@ -27,10 +28,10 @@ b8 engine_start() {
 
     geometry_init();
     {
-        vertex_t a = {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}};
-        vertex_t b = {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}};
-        vertex_t c = {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
-        vertex_t d = {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}};
+        vertex_t a = {{-5.0f, -5.0f, 1.0f}, {1.0f, 0.0f, 0.0f}};
+        vertex_t b = {{5.0f, -5.0f, 1.0f}, {0.0f, 1.0f, 0.0f}};
+        vertex_t c = {{5.0f, 5.0f, 1.0f}, {0.0f, 0.0f, 1.0f}};
+        vertex_t d = {{-5.0f, 5.0f, 1.0f}, {1.0f, 1.0f, 1.0f}};
         vertex_t verts[] = {a, b, c, d};
         u16 indices[] = {0, 1, 2, 2, 3, 0};
         for(u16 i = 0; i < 4; i++) {
@@ -40,6 +41,8 @@ b8 engine_start() {
             geometry_addIndex(indices[i]);
         }
     }
+
+    camera_init(90.0f, 0.1f, 100.0f);
 
     bigvulkan_init(extensionCount, extensionNames);
 
@@ -51,6 +54,8 @@ b8 engine_start() {
         if(!input_handle()) {
             engine_state->isRunning = FALSE;
         }
+        camera_move();
+        camera_updateMatrices();
 
         // clock_t start = clock();
         bigvulkan_drawFrame();
@@ -60,9 +65,9 @@ b8 engine_start() {
     }
     report_info("engine_start()", "engine has stopped, performing cleanup");
     bigvulkan_cleanup();
+    camera_cleanup();
     geometry_cleanup();
     input_cleanup();
     window_destroy();
-    free(engine_state);
     return TRUE;
 }

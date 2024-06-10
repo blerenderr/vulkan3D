@@ -37,6 +37,10 @@ STATIC_ASSERT(sizeof(f64) == 8, "expected f64 to be 8 bytes");
 #define TRUE 1
 #define FALSE 0
 
+#define PI 3.141592653589f
+#define DEG_TO_RAD PI/180.0f
+#define U64_MAX ~0ULL
+
 typedef struct {
     u32 data;
     b8 hasValue;
@@ -52,3 +56,10 @@ typedef struct {
     float y;
     float z;
 } vec3_t;
+
+typedef struct {
+    float x;
+    float y;
+    float z;
+    float w;
+} vec4_t;

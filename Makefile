@@ -27,10 +27,10 @@ shaders:
 	glslc ./src/resource/simple_shader.frag -o ./bin/resource/simple_shader.frag.spv
 
 debug:
-	clang ./src/*.c ./src/SDL/*.c $(debugCmplrFlags) -o ./bin/$(binary) $(includeFlags) $(linkerFlags) $(other)
+	clang ./src/*.c $(debugCmplrFlags) -o ./bin/$(binary) $(includeFlags) $(linkerFlags) $(other)
 
 release:
-	clang ./src/*.c ./src/SDL/*.c $(releaseCmplrFlags) -o ./bin/$(binary) $(includeFlags) $(linkerFlags) $(other)
+	clang ./src/*.c $(releaseCmplrFlags) -o ./bin/$(binary) $(includeFlags) $(linkerFlags) $(other)
 
 run:
 	cd ./bin/ && ./$(binary)
